@@ -30,8 +30,8 @@ action :install do
 
     start_time = Time.now
     out = new_resource.patch ?
-      rbenv_command(['install', '--patch', new_resource.ruby_version], patch: new_resource.patch) :
-      rbenv_command([install, new_resource.ruby_version])
+      rbenv_command("install --patch #{new_resource.ruby_version}", patch: new_resource.patch) :
+      rbenv_command("install #{new_resource.ruby_version}")
 
     unless out.exitstatus == 0
       raise Chef::Exceptions::ShellCommandFailed, "\n" + out.format_for_exception
@@ -55,7 +55,7 @@ action :install do
 
   if new_resource.global && !rbenv_global_version?(new_resource.name)
     Chef::Log.info "Setting #{resource_descriptor} as the rbenv global version"
-    out = rbenv_command([global, new_resource.ruby_version])
+    out = rbenv_command("global #{new_resource.ruby_version}")
     unless out.exitstatus == 0
       raise Chef::Exceptions::ShellCommandFailed, "\n" + out.format_for_exception
     end
