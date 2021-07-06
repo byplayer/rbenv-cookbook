@@ -52,7 +52,16 @@ class Chef
           end
           shell_out("curl -fsSL #{patch} | filterdiff -x ChangeLog | #{rbenv_bin_path}/rbenv #{cmd}", Chef::Mixin::DeepMerge.deep_merge!(options, default_options))
         else
-          shell_out("#{rbenv_bin_path}/rbenv", cmd, Chef::Mixin::DeepMerge.deep_merge!(options, default_options))
+          cmds = ["#{rbenv_bin_path}/rbenv"]
+          if cmd.is_a?
+            cmd.each do |v|
+              cmds << v
+            end
+
+          else
+            cmds << cmd
+          end
+          shell_out(*cmds, Chef::Mixin::DeepMerge.deep_merge!(options, default_options))
         end
       end
 
