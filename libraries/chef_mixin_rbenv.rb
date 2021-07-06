@@ -52,12 +52,12 @@ class Chef
           end
           shell_out("curl -fsSL #{patch} | filterdiff -x ChangeLog | #{rbenv_bin_path}/rbenv #{cmd}", Chef::Mixin::DeepMerge.deep_merge!(options, default_options))
         else
-          shell_out("#{rbenv_bin_path}/rbenv", cmd, Chef::Mixin::DeepMerge.deep_merge!(options, default_options))
+          shell_out("#{rbenv_bin_path}/rbenv #{cmd}", Chef::Mixin::DeepMerge.deep_merge!(options, default_options))
         end
       end
 
       def rbenv_installed?
-        out = shell_out('ls', "#{rbenv_bin_path}/rbenv")
+        out = shell_out("ls #{rbenv_bin_path}/rbenv")
         out.exitstatus == 0
       end
 
