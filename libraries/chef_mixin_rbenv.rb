@@ -20,62 +20,71 @@
 #
 
 require 'chef/mixin/shell_out'
+require 'mixlib/shellout'
 
 class Chef
   module Mixin
     module Rbenv
       include Chef::Mixin::ShellOut
 
-      def rbenv_command(cmd, options = {})
+      def rbenv_command(*cmds)
         unless rbenv_installed?
-          Chef::Log.error("rbenv is not yet installed. Unable to run " +
-                          "rbenv_command:`#{cmd}`. Are you trying to use " +
-                          "`rbenv_command` at the top level of your recipe? " +
-                          "This is known to cause this error")
+          Chef::Log.error('rbenv is not yet installed. Unable to run ' +
+                          "rbenv_command:`#{cmd.inspect}`. Are you trying to use " +
+                          '`rbenv_command` at the top level of your recipe? ' +
+                          'This is known to cause this error')
           raise "rbenv not installed. Can't run rbenv_command"
         end
 
+        options = {}
+        options = cmds.pop if cmds.last.is_a?(Hash)
+
         default_options = {
-          :user => node[:rbenv][:user],
-          :group => node[:rbenv][:group],
-          :cwd => rbenv_root_path,
-          :env => {
+          user: node['rbenv']['user'],
+          group: node['rbenv']['group'],
+          cwd: rbenv_root_path,
+          env: {
             'RBENV_ROOT' => rbenv_root_path
           },
-          :timeout => 3600
+          timeout: 3600
         }
         if patch = options.delete(:patch)
           Chef::Log.info("Patch found at: #{patch}")
           unless filterdiff_installed?
-            Chef::Log.error("Cannot find filterdiff. Please install patchutils to be able to use patches.")
-            raise "Cannot find filterdiff. Please install patchutils to be able to use patches."
+            Chef::Log.error('Cannot find filterdiff. Please install patchutils to be able to use patches.')
+            raise 'Cannot find filterdiff. Please install patchutils to be able to use patches.'
           end
-          shell_out("curl -fsSL #{patch} | filterdiff -x ChangeLog | #{rbenv_bin_path}/rbenv #{cmd}", Chef::Mixin::DeepMerge.deep_merge!(options, default_options))
+          Chef::Mixin::DeepMerge.deep_merge!(default_options, options)
+          so = Mixlib::ShellOut.new(['curl', '-fsSL', patch, '|',
+                                     'filterdiff', '-x', 'ChangeLog', '|', "#{rbenv_bin_path}/rbenv #{cmd}"],
+                                    options)
+          so.run_command
         else
-          shell_out("#{rbenv_bin_path}/rbenv #{cmd}", Chef::Mixin::DeepMerge.deep_merge!(options, default_options))
+          cmds.unshift("#{rbenv_bin_path}/rbenv")
+          Chef::Mixin::DeepMerge.deep_merge!(default_options, options)
+          so = Mixlib::ShellOut.new(cmds, options)
+          so.run_command
         end
       end
 
       def rbenv_installed?
-        out = shell_out("ls #{rbenv_bin_path}/rbenv")
+        out = shell_out('ls', "#{rbenv_bin_path}/rbenv")
         out.exitstatus == 0
       end
 
       def ruby_version_installed?(version)
-        out = rbenv_command("prefix", :env => { 'RBENV_VERSION' => version })
+        out = rbenv_command('prefix', env: { 'RBENV_VERSION' => version })
         out.exitstatus == 0
       end
 
       def filterdiff_installed?
-        out = shell_out("which filterdiff")
+        out = shell_out('which', 'filterdiff')
         out.exitstatus == 0
       end
 
       def rbenv_global_version?(version)
-        out = rbenv_command("global")
-        unless out.exitstatus == 0
-          raise Chef::Exceptions::ShellCommandFailed, "\n" + out.format_for_exception
-        end
+        out = rbenv_command('global')
+        raise Mixlib::ShellOut::ShellCommandFailed, "\n" + out.format_for_exception unless out.exitstatus == 0
 
         global_version = out.stdout.chomp
         global_version == version
@@ -86,25 +95,23 @@ class Chef
       end
 
       def rbenv_prefix_for(version)
-        out = rbenv_command("prefix", :env => { 'RBENV_VERSION' => version })
+        out = rbenv_command('prefix', env: { 'RBENV_VERSION' => version })
 
-        unless out.exitstatus == 0
-          raise Chef::Exceptions::ShellCommandFailed, "\n" + out.format_for_exception
-        end
+        raise Mixlib::ShellOut::ShellCommandFailed, "\n" + out.format_for_exception unless out.exitstatus == 0
 
         prefix = out.stdout.chomp
       end
 
       def rbenv_bin_path
-        ::File.join(rbenv_root_path, "bin")
+        ::File.join(rbenv_root_path, 'bin')
       end
 
       def rbenv_shims_path
-        ::File.join(rbenv_root_path, "shims")
+        ::File.join(rbenv_root_path, 'shims')
       end
 
       def rbenv_root_path
-        node[:rbenv][:root_path]
+        node['rbenv']['root_path']
       end
 
       # Ensures $HOME is temporarily set to the given user. The original
@@ -119,7 +126,6 @@ class Chef
       #   https://github.com/git/git/commit/4698c8feb1bb56497215e0c10003dd046df352fa
       #
       def with_home_for_user(username, &block)
-
         time = Time.now.to_i
 
         ruby_block "set HOME for #{username} at #{time}" do

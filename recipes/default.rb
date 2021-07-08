@@ -20,30 +20,30 @@
 #
 
 node.default[:rbenv][:root]          = rbenv_root_path
-node.default[:ruby_build][:prefix]   = "#{node[:rbenv][:root]}/plugins/ruby_build"
+node.default[:ruby_build][:prefix]   = "#{node[:rbenv][:root]}/plugins/ruby-build"
 node.default[:ruby_build][:bin_path] = "#{node[:ruby_build][:prefix]}/bin"
 
 case node[:platform]
-when "ubuntu", "debian"
-  include_recipe "apt"
+when 'ubuntu', 'debian'
+  include_recipe 'apt'
 end
 
-include_recipe "build-essential"
-include_recipe "git"
-package "curl"
+include_recipe 'build-essential'
+include_recipe 'git'
+package 'curl'
 
 case node[:platform]
-when "redhat", "centos", "amazon", "oracle"
+when 'redhat', 'centos', 'amazon', 'oracle'
   # TODO: add as per "rvm requirements"
-  package "openssl-devel"
-  package "zlib-devel"
-  package "readline-devel"
-  package "libxml2-devel"
-  package "libxslt-devel"
-when "ubuntu", "debian"
-  package "libc6-dev"
-  package "automake"
-  package "libtool"
+  package 'openssl-devel'
+  package 'zlib-devel'
+  package 'readline-devel'
+  package 'libxml2-devel'
+  package 'libxslt-devel'
+when 'ubuntu', 'debian'
+  package 'libc6-dev'
+  package 'automake'
+  package 'libtool'
 
   # https://github.com/sstephenson/ruby-build/issues/119
   # "It seems your ruby installation is missing psych (for YAML
@@ -56,22 +56,22 @@ when "ubuntu", "debian"
   package 'zlib1g-dev'
 
   # openssl support for ruby
-  package "openssl"
+  package 'openssl'
   package 'libssl-dev'
 
   # readline for irb and rails console
-  package "libreadline-dev"
+  package 'libreadline-dev'
 
   # for ruby stdlib rexml and nokogiri
   # http://nokogiri.org/tutorials/installing_nokogiri.html
-  package "libxml2-dev"
-  package "libxslt1-dev"
+  package 'libxml2-dev'
+  package 'libxslt1-dev'
 
   # better irb support
-  package "ncurses-dev"
+  package 'ncurses-dev'
 
   # for searching packages
-  package "pkg-config"
+  package 'pkg-config'
 end
 
 group node[:rbenv][:group] do
@@ -79,7 +79,7 @@ group node[:rbenv][:group] do
 end
 
 user node[:rbenv][:user] do
-  shell "/bin/bash"
+  shell '/bin/bash'
   group node[:rbenv][:group]
   manage_home node[:rbenv][:manage_home]
   home node[:rbenv][:user_home]
@@ -88,12 +88,11 @@ end
 directory node[:rbenv][:root] do
   owner node[:rbenv][:user]
   group node[:rbenv][:group]
-  mode "2775"
+  mode '2775'
   recursive true
 end
 
 with_home_for_user(node[:rbenv][:user]) do
-
   git node[:rbenv][:root] do
     repository node[:rbenv][:git_repository]
     reference node[:rbenv][:git_revision]
@@ -101,26 +100,26 @@ with_home_for_user(node[:rbenv][:user]) do
     group node[:rbenv][:group]
     action :sync
 
-    notifies :create, "template[/etc/profile.d/rbenv.sh]", :immediately
+    notifies :create, 'template[/etc/profile.d/rbenv.sh]', :immediately
   end
-
 end
 
-template "/etc/profile.d/rbenv.sh" do
-  source "rbenv.sh.erb"
-  mode "0644"
+template '/etc/profile.d/rbenv.sh' do
+  source 'rbenv.sh.erb'
+  mode '0644'
   variables(
-    :rbenv_root => node[:rbenv][:root],
-    :ruby_build_bin_path => node[:ruby_build][:bin_path]
+    rbenv_root: node[:rbenv][:root],
+    ruby_build_bin_path: node[:ruby_build][:bin_path]
   )
 
-  notifies :create, "ruby_block[initialize_rbenv]", :immediately
+  notifies :create, 'ruby_block[initialize_rbenv]', :immediately
 end
 
-ruby_block "initialize_rbenv" do
+ruby_block 'initialize_rbenv' do
   block do
     ENV['RBENV_ROOT'] = node[:rbenv][:root]
-    ENV['PATH'] = "#{node[:rbenv][:root]}/bin:#{node[:rbenv][:root]}/shims:#{node[:ruby_build][:bin_path]}:#{ENV['PATH']}"
+    ENV['PATH'] =
+      "#{node[:rbenv][:root]}/bin:#{node[:rbenv][:root]}/shims:#{node[:ruby_build][:bin_path]}:#{ENV['PATH']}"
   end
 
   action :nothing
@@ -129,11 +128,11 @@ end
 # rbenv init creates these directories as root because it is called
 # from /etc/profile.d/rbenv.sh But we want them to be owned by rbenv
 # check https://github.com/sstephenson/rbenv/blob/master/libexec/rbenv-init#L71
-%w{shims versions plugins}.each do |dir_name|
+%w[shims versions plugins].each do |dir_name|
   directory "#{node[:rbenv][:root]}/#{dir_name}" do
     owner node[:rbenv][:user]
     group node[:rbenv][:group]
-    mode "2775"
+    mode '2775'
     action [:create]
   end
 end

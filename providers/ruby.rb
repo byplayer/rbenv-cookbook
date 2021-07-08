@@ -29,25 +29,26 @@ action :install do
     Chef::Log.info "#{resource_descriptor} is building, this may take a while..."
 
     start_time = Time.now
-    out = new_resource.patch ?
-      rbenv_command("install --patch #{new_resource.ruby_version}", patch: new_resource.patch) :
-      rbenv_command("install #{new_resource.ruby_version}")
+    out = if new_resource.patch
+            rbenv_command('install', '--patch', new_resource.ruby_version.to_s, patch: new_resource.patch)
+          else
+            rbenv_command('install', new_resource.ruby_version)
+          end
 
-    unless out.exitstatus == 0
-      raise Chef::Exceptions::ShellCommandFailed, "\n" + out.format_for_exception
-    end
+    raise Mixlib::ShellOut::ShellCommandFailed, "\n" + out.format_for_exception unless out.exitstatus == 0
 
-    Chef::Log.debug("#{resource_descriptor} build time was #{(Time.now - start_time)/60.0} minutes.")
+    Chef::Log.debug("#{resource_descriptor} build time was #{(Time.now - start_time) / 60.0} minutes.")
 
     chmod_options = {
-      user: node[:rbenv][:user],
-      group: node[:rbenv][:group],
+      user: node['rbenv']['user'],
+      group: node['rbenv']['group'],
       cwd: rbenv_root_path
     }
 
     unless Chef::Platform.windows?
-      shell_out("chmod -R 0775 versions/#{new_resource.ruby_version}", chmod_options)
-      shell_out("find versions/#{new_resource.ruby_version} -type d -exec chmod +s {} \\;", chmod_options)
+      shell_out('chmod', '-R', '0775', "versions/#{new_resource.ruby_version}", chmod_options)
+      shell_out('find', "versions/#{new_resource.ruby_version}", '-type', 'd',
+                '-exec', 'chmod', '+s', '{}', '\\\\;', chmod_options)
     end
 
     new_resource.updated_by_last_action(true)
@@ -55,10 +56,9 @@ action :install do
 
   if new_resource.global && !rbenv_global_version?(new_resource.name)
     Chef::Log.info "Setting #{resource_descriptor} as the rbenv global version"
-    out = rbenv_command("global #{new_resource.ruby_version}")
-    unless out.exitstatus == 0
-      raise Chef::Exceptions::ShellCommandFailed, "\n" + out.format_for_exception
-    end
+    out = rbenv_command('global', new_resource.ruby_version)
+    raise Mixlib::ShellOut::ShellCommandFailed, "\n" + out.format_for_exception unless out.exitstatus == 0
+
     new_resource.updated_by_last_action(true)
   end
 end
